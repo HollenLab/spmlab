@@ -1,3 +1,3 @@
 ## SM4 Utilities
 
-A simple wrapper around the 'spym' package to allow for easy plotting of STM data.
+Utility tools for reading, analyzing, and plotting scanning probe microscopy data.
