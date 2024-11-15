@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spmlab"
-version = "1.1.21"
+version = "1.1.22"
 license = "MIT"
 description = "Utility tools for reading, analyzing, and plotting scanning probe microscopy data."
 authors = ["Ben Campbell <bhc1010@pm.me>"]
