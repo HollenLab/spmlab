@@ -1,17 +1,18 @@
 ## Typing
 from xarray import Dataset
+from typing import List
+from collections import namedtuple
 
 ## External packages
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
+from pathlib import Path
 
-## Internal packages
-from .abstract import SpectralData
-from ...readers.spym.io import load
+xydata = namedtuple("xydata", {"x", "y"})
 
-class STSData(SpectralData):
+class STSData:
     """
     A class to handle Scanning Tunneling Spectroscopy (STS) data, extending from the `SpectralData` base class.
     
@@ -38,9 +39,12 @@ class STSData(SpectralData):
             ldos (Dataset): The LIA_Current dataset, representing the Local Density of States.
             coords (list): A list of unique coordinates obtained from the `RHK_SpecDrift_Xcoord` and `RHK_SpecDrift_Ycoord`.
         """
-        super().__init__(src, ds)
-        self.ldos = self.ds.LIA_Current
-        self.coords = self.get_unique_coords(zip(self.ldos.RHK_SpecDrift_Xcoord, self.ldos.RHK_SpecDrift_Ycoord))
+        self.path = Path(src)
+        self.name = self.path.stem
+        self.ds = ds.LIA_Current
+        self.data = xydata(x=ds.LIA_Current_x.data, y=ds.LIA_Current.data)
+        self.coords = self.get_unique_coords(zip(self.ds.RHK_SpecDrift_Xcoord, self.ds.RHK_SpecDrift_Ycoord))
+
 
     def waterfall(self,
                   figsize=(8,8), 
@@ -69,24 +73,25 @@ class STSData(SpectralData):
             print("No STS data found.")
             return
 
-        xsize = self.ldos.RHK_Xsize
-        total = self.ldos.RHK_Ysize
+        xsize = self.ds.RHK_Xsize
+        total = self.ds.RHK_Ysize
         repetitions = total//N
-        x = self.ldos.LIA_Current_x.data * 1e3
-        ldos_ave = self.ldos.data.reshape(xsize, N, repetitions).mean(axis=2).T
+        x = self.ds.LIA_Current_x.data * 1e3
+        ldos = self.ds.data.reshape(xsize, N, repetitions).mean(axis=2).T
 
         ## Plot
         if spacing is None:
-            spacing = np.max(ldos_ave) / 10
+            spacing = np.max(ldos) / 10
         waterfall_offset = np.flip([i * spacing for i in range(N)])
         colors = cmap(np.linspace(0, 1, N))
 
         fig, ax = plt.subplots(figsize=figsize)
-        for (i, dIdV) in enumerate(ldos_ave):
+        for (i, dIdV) in enumerate(ldos):
             ax.plot(x, dIdV + waterfall_offset[i], c=colors[i])
 
         fig.tight_layout()
         return (fig, ax)
+
 
     def matrix(self,
                as_linecut=False,
@@ -126,11 +131,11 @@ class STSData(SpectralData):
             print("No STS data found.")
             return
 
-        xsize = self.ldos.RHK_Xsize
-        total = self.ldos.RHK_Ysize
+        xsize = self.ds.RHK_Xsize
+        total = self.ds.RHK_Ysize
         repetitions = total//N
-        x = self.ldos.LIA_Current_x.data * 1e3
-        ldos_ave = self.ldos.data.reshape(xsize, N, repetitions).mean(axis=2).T
+        x = self.ds.LIA_Current_x.data * 1e3
+        ldos = self.ds.data.reshape(xsize, N, repetitions).mean(axis=2).T
 
         fig, ax = plt.subplots(figsize=(16,7))
 
@@ -141,11 +146,11 @@ class STSData(SpectralData):
             aspect = abs(x[-1] - x[0]) / line_length
 
         if clip_max:
-            ldos_ave = ldos_ave.clip(None, clip_max)
+            ldos = ldos.clip(None, clip_max)
         if clip_min:
-            ldos_ave = ldos_ave.clip(clip_min, None)
+            ldos = ldos.clip(clip_min, None)
 
-        img = ax.imshow(ldos_ave, aspect=aspect, extent=[x[0], x[-1], 0, line_length], norm=norm, cmap=cmap, vmax=vmax)
+        img = ax.imshow(ldos, aspect=aspect, extent=[x[0], x[-1], 0, line_length], norm=norm, cmap=cmap, vmax=vmax)
 
         if as_linecut:
             ax.set_yticks(np.linspace(line_length, 0, 10))
@@ -160,6 +165,7 @@ class STSData(SpectralData):
             cb = fig.colorbar(img, cax=cax)
         
         return (fig, ax, cb)
+
 
     def coordinates(self, 
                     image_path=None, 
@@ -282,13 +288,30 @@ class STSData(SpectralData):
         fig.tight_layout()
         return (fig, ax)
 
+
+    def get_unique_coords(self, coords) -> List:
+        """ 
+            Returns the coordinates of subclass's data without any duplicates
+            The set of unique coordinates can be used for plotting on top of an image.
+            Args:
+                coords: 
+            Returns:
+                list of unique coordinates
+        """
+        seen = set()
+        seen_add = seen.add
+        return [x for x in coords if not (x in seen or seen_add(x))]
+
+
     def scale_data(self, scale: float):
-        self.ldos.data *= scale
+        self.ds.data *= scale
+
 
     def get_min(self) -> float:
-        return np.min(self.ldos.data)
-    
+        return np.min(self.ds.data)
+
+
     def get_max(self) -> float:
-        return np.max(self.ldos.data)
+        return np.max(self.ds.data)
     
     

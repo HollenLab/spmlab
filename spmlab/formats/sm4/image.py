@@ -7,16 +7,14 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from xarray import DataArray, Dataset
+from pathlib import Path
 
-## Internal packages
-from .abstract import AbstractSM4Data
-    
-
-class TopoData(AbstractSM4Data):
+class TopoData:
     """
     """
     def __init__(self, topo: DataArray):
-        self._topo = topo
+        self.topo = topo
+        self.data = topo.data
 
     def plot(self,
              align=True, 
@@ -27,7 +25,7 @@ class TopoData(AbstractSM4Data):
              scalebar_height=None):
         """
         """
-        img = self._topo
+        img = self.topo
 
         if align:
             img.spym.align()
@@ -75,19 +73,17 @@ class TopoData(AbstractSM4Data):
         return np.max(self._topo.data)
 
 
-    def scale_data(self, scale: float):
-        warn("Cannot scale image data. Access self.ds to scale data manually.")
-
-class ImageData(AbstractSM4Data):
+class ImageData:
     """
         ImageData is a container for the forward and backward topography data coming from src.
         Technically an AbstractSM4Data subclass, but doesn't implement the abstract methods
         and instead holds two references to other AbstractSM4Data subclasses (TopoData)
     """
     def __init__(self, src: str, ds: Dataset):
-        super().__init__(src, ds)
-        self.forward = TopoData(self.ds.Topography_Forward)
-        self.backward = TopoData(self.ds.Topography_Backward)
+        self.path = Path(src)
+        self.name = self.path.stem
+        self.forward = TopoData(ds.Topography_Forward)
+        self.backward = TopoData(ds.Topography_Backward)
 
     def plot(self):
         warn(("Cannot call plot on ImageData object." 

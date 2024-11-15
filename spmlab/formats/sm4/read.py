@@ -2,13 +2,11 @@
 from ...readers.spym import io
 
 ## Internal packages
-from .abstract import AbstractSM4Data
 from .image import ImageData
 from .sts import STSData
 from .iz import IZData
 
-def read(src_path: str) -> AbstractSM4Data:
-
+def read(src_path: str):
     sm4 = io.load(src_path)
     if sm4 is None:
         raise FileExistsError("There was a problem loading the file. Ensure that the full path to the file is correct.")
