@@ -1,1 +1,1 @@
-from .sm4 import TopoDirection
+from .sm4.image import TopoDirection
