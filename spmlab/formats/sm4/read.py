@@ -1,11 +1,13 @@
-def read(src_path: str):
-    ## External packages
-    from ...readers.spym import io
+## External packages
+from ...readers.spym import io
 
-    ## Internal packages
-    from .image import ImageData
-    from .sts import STSData
-    from .iz import IZData
+## Internal packages
+from .abstract import AbstractSM4Data
+from .image import ImageData
+from .sts import STSData
+from .iz import IZData
+
+def read(src_path: str) -> AbstractSM4Data:
 
     sm4 = io.load(src_path)
     if sm4 is None:
