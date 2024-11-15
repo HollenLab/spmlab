@@ -1,5 +1,5 @@
 from xarray import Dataset
-from ._abstract import SpectralData
+from .abstract import SpectralData
 
 class IZData(SpectralData):
     def __init__(self, src: str, raw: Dataset):

@@ -8,7 +8,7 @@ import matplotlib.font_manager as fm
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 
 ## Internal packages
-from ._abstract import SpectralData
+from .abstract import SpectralData
 from ...readers.spym.io import load
 
 class STSData(SpectralData):
