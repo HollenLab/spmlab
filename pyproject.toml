@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spmlab"
-version = "1.1.1"
+version = "1.1.20"
 license = "MIT"
 description = "Utility tools for reading, analyzing, and plotting scanning probe microscopy data."
 authors = ["Ben Campbell <bhc1010@pm.me>"]
@@ -19,7 +19,6 @@ packages = [
 python = "^3.10"
 numpy = "^1.23"
 matplotlib = "^3.6"
-spym = "^0.9"
 
 
 [build-system]

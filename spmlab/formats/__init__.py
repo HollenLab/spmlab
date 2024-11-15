@@ -1,1 +1,1 @@
-from .sm4 import SM4
+from .sm4 import read
