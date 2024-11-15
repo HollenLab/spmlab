@@ -6,6 +6,7 @@ from collections import namedtuple
 ## External packages
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 from pathlib import Path
 
 ## Internal packages
@@ -49,6 +50,7 @@ class STSData:
 
 
     def waterfall(self,
+                  fig=None,
                   figsize=(8,8), 
                   spacing=None, 
                   cmap=plt.cm.jet):
@@ -87,7 +89,19 @@ class STSData:
         waterfall_offset = np.flip([i * spacing for i in range(N)])
         colors = cmap(np.linspace(0, 1, N))
 
-        fig, ax = plt.subplots(figsize=figsize)
+        if fig is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            n = len(fig.axes)
+            gs = gridspec.GridSpec(1, n+1)
+            # Reposition existing subplots
+            for i, ax in enumerate(fig.axes):
+                ax.set_position(gs[i].get_position(fig))
+                ax.set_subplotspec(gs[i])
+
+            # Add new subplot
+            ax = fig.add_subplot(gs[n])
+
         for (i, dIdV) in enumerate(ldos):
             ax.plot(x, dIdV + waterfall_offset[i], c=colors[i])
 
@@ -96,11 +110,15 @@ class STSData:
 
 
     def matrix(self,
+               fig=None,
+               figsize=(8,8),
                as_linecut=False,
                aspect=None, 
                norm=None, 
                cmap=plt.cm.jet, 
-               color_bar=True, 
+               color_bar=True,
+               flip_y=False,
+               flip_x=False,
                vmax=None,
                clip_max=None,
                clip_min=None):
@@ -139,7 +157,18 @@ class STSData:
         x = self.ds.LIA_Current_x.data * 1e3
         ldos = self.ds.data.reshape(xsize, N, repetitions).mean(axis=2).T
 
-        fig, ax = plt.subplots(figsize=(16,7))
+        if fig is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            n = len(fig.axes)
+            gs = gridspec.GridSpec(1, n+1)
+            # Reposition existing subplots
+            for i, ax in enumerate(fig.axes):
+                ax.set_position(gs[i].get_position(fig))
+                ax.set_subplotspec(gs[i])
+
+            # Add new subplot
+            ax = fig.add_subplot(gs[n])
 
         line_cut = (self.coords[-1][0] - self.coords[0][0], self.coords[-1][1] - self.coords[0][1])
         line_length = np.sqrt(line_cut[0]**2 + line_cut[1]**2) * 1e9
@@ -151,6 +180,11 @@ class STSData:
             ldos = ldos.clip(None, clip_max)
         if clip_min:
             ldos = ldos.clip(clip_min, None)
+
+        if flip_y:
+            ldos = np.flip(ldos, 0)
+        if flip_x:
+            ldos = np.flip(ldos, 1)
 
         img = ax.imshow(ldos, aspect=aspect, extent=[x[0], x[-1], 0, line_length], norm=norm, cmap=cmap, vmax=vmax)
 
@@ -169,18 +203,21 @@ class STSData:
         return (fig, ax, cb)
 
 
-    def coordinates(self, 
+    def coordinates(self,
+                    fig=None,
                     image_path=None, 
                     topo_dir=TopoDirection.Forward, 
                     align=True, 
                     plane=True, 
                     fix_zero=True, 
                     show_axis=False, 
+                    show_title=False, 
                     show_scalebar=True,
                     scalebar_height=None, 
                     figsize=(8,8), 
                     cmap=plt.cm.afmhot,
-                    arrow=False):
+                    arrow=False,
+                    flip_arrow=False):
         """
         Visualize the coordinates of the Scanning Tunneling Spectroscopy (STS) data on top of a topography image.
 
@@ -237,10 +274,12 @@ class STSData:
         offset = np.array([xoffset, yoffset]) + 0.5 * np.array([-width, -height])
         colors = plt.cm.jet(np.linspace(0, 1, N))
         
-        fig, ax = topo.plot(align=align, 
+        fig, ax = topo.plot(fig=fig,
+                            align=align, 
                             plane=plane, 
                             fix_zero=fix_zero,
                             show_axis=show_axis,
+                            show_title=show_title,
                             show_scalebar=show_scalebar,
                             scalebar_height=scalebar_height,
                             figsize=figsize,
@@ -249,6 +288,8 @@ class STSData:
         if arrow:
             (x1, y1) = np.array(self.coords[0] - offset) * 1e9
             (x2, y2) = np.array(self.coords[-1] - offset) * 1e9
+            if flip_arrow:
+                x1, y1, x2, y2 = x2, y2, x1, y1
             ax.arrow(x1, y1, x2 - x1, y2 - y1, lw=0.1, width=0.2, length_includes_head=True, edgecolor='w', facecolor='w')
         else:
             for (i, real_coord) in enumerate(self.coords):
@@ -257,6 +298,8 @@ class STSData:
 
         return (fig, ax)
 
+    def get_topography(self):
+        return _get_prev_image(self.path)
 
     def get_unique_coords(self, coords) -> List:
         """ 

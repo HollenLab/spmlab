@@ -6,6 +6,7 @@ from warnings import warn
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+from matplotlib import gridspec
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from xarray import DataArray, Dataset
 from pathlib import Path
@@ -18,15 +19,19 @@ class TopoDirection(Enum):
 class TopoData:
     """
     """
-    def __init__(self, ds: DataArray):
+    def __init__(self, src: str, ds: DataArray):
+        self.path = Path(src)
+        self.name = self.path.stem
         self.ds = ds
         self.data = ds.data
 
     def plot(self,
+             fig=None,
              align=True, 
              plane=True, 
              fix_zero=True, 
-             show_axis=False, 
+             show_axis=False,
+             show_title=False,
              show_scalebar=True,
              scalebar_height=None,
              figsize=(8,8), 
@@ -42,7 +47,19 @@ class TopoData:
         if fix_zero:
             img.spym.fixzero()
         
-        fig, ax = plt.subplots(figsize=figsize)
+        if fig is None:
+            fig, ax = plt.subplots(figsize=figsize)
+        else:
+            n = len(fig.axes)
+            gs = gridspec.GridSpec(1, n+1)
+            # Reposition existing subplots
+            for i, ax in enumerate(fig.axes):
+                ax.set_position(gs[i].get_position(fig))
+                ax.set_subplotspec(gs[i])
+
+            # Add new subplot
+            ax = fig.add_subplot(gs[n])
+
         if not show_axis:
             ax.axis('off')
         else:
@@ -63,8 +80,12 @@ class TopoData:
                                    fontproperties=fontprops)
 
         ax.imshow(img.data, extent=[0, size, 0, size], cmap=cmap)
+        
         if show_scalebar:
             ax.add_artist(scalebar)
+
+        if show_title:
+            ax.set_title('topo data: ' + self.name)
 
         fig.tight_layout()
         return (fig, ax)
@@ -91,13 +112,13 @@ class ImageData:
     def __init__(self, src: str, ds: Dataset):
         self.path = Path(src)
         self.name = self.path.stem
-        self.forward = TopoData(ds.Topography_Forward)
-        self.backward = TopoData(ds.Topography_Backward)
+        self.forward = TopoData(src, ds.Topography_Forward)
+        self.backward = TopoData(src, ds.Topography_Backward)
 
     def plot(self):
-        warn(("Cannot call plot on ImageData object." 
-             "Please call plot() on the forward or backward attributes:" 
-             "---------------------------------------------------------" 
-             "from spmlab.formats import sm4" 
-             "topo = sm4.read(\"path/to/topo/data.sm4\")"
-             "topo.forward.plot()"))
+        raise Exception(("\nCannot call plot() on ImageData object.\n" 
+                         "Please call plot() on the forward or backward attributes:\n"
+                         "---------------------------------------------------------\n"
+                         "from spmlab.formats import sm4\n" 
+                         "topo = sm4.read(\"path/to/topo/data.sm4\")\n"
+                         "topo.forward.plot()\n"))
