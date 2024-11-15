@@ -6,9 +6,11 @@ from collections import namedtuple
 ## External packages
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as fm
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from pathlib import Path
+
+## Internal packages
+from .utils import _get_prev_image, _get_topo_from_path
+from .image import TopoDirection
 
 xydata = namedtuple("xydata", {"x", "y"})
 
@@ -169,14 +171,15 @@ class STSData:
 
     def coordinates(self, 
                     image_path=None, 
-                    image_type='forward', 
+                    topo_dir=TopoDirection.Forward, 
                     align=True, 
                     plane=True, 
                     fix_zero=True, 
                     show_axis=False, 
+                    show_scalebar=True,
                     scalebar_height=None, 
                     figsize=(8,8), 
-                    cmap='afmhot',
+                    cmap=plt.cm.afmhot,
                     arrow=False):
         """
         Visualize the coordinates of the Scanning Tunneling Spectroscopy (STS) data on top of a topography image.
@@ -210,82 +213,48 @@ class STSData:
             print("No STS data found.")
             return
 
-        topo = None
         if image_path is None:
-            topo = self.get_last_image()
+            imgdata = _get_prev_image(self.path)
         else:
-            try:
-                topo_sm4 = load(image_path)
-                match image_type:
-                    case 'forward':
-                        topo = topo_sm4.Topography_Forward
-                    case 'backward':
-                        topo = topo_sm4.Topography_Backward
-                    case _:
-                        print("Invalid image_type. Please use 'forward' or 'backward'")
-            except:
-                print(f"Couldn't load topography data from {image_path}")
-                return
+            imgdata = _get_topo_from_path(image_path)
         
-        if topo is None:
-            print("No topography data found.")
-            return
+        match topo_dir:
+            case TopoDirection.Forward:
+                topo = imgdata.forward
+            case TopoDirection.Backward:
+                topo = imgdata.backward
 
-         ## Spec Coordinates
-        xoffset = topo.RHK_Xoffset
-        yoffset = topo.RHK_Yoffset
-        xscale = topo.RHK_Xscale
-        yscale = topo.RHK_Yscale
-        xsize = topo.RHK_Xsize
-        ysize = topo.RHK_Ysize
+        ## Spec Coordinates
+        xoffset = topo.ds.RHK_Xoffset
+        yoffset = topo.ds.RHK_Yoffset
+        xscale = topo.ds.RHK_Xscale
+        yscale = topo.ds.RHK_Yscale
+        xsize = topo.ds.RHK_Xsize
+        ysize = topo.ds.RHK_Ysize
         width = np.abs(xscale * xsize)
         height = np.abs(yscale * ysize)
 
         offset = np.array([xoffset, yoffset]) + 0.5 * np.array([-width, -height])
         colors = plt.cm.jet(np.linspace(0, 1, N))
         
-        fig, ax = plt.subplots(figsize=figsize)
-        if not show_axis:
-            ax.axis('off')
-        else:
-            ax.set_xlabel("[nm]")
-            ax.set_ylabel("[nm]")
+        fig, ax = topo.plot(align=align, 
+                            plane=plane, 
+                            fix_zero=fix_zero,
+                            show_axis=show_axis,
+                            show_scalebar=show_scalebar,
+                            scalebar_height=scalebar_height,
+                            figsize=figsize,
+                            cmap=cmap)
 
-        if align:
-            topo.spym.align()
-        if plane:
-            topo.spym.plane()
-        if fix_zero:
-            topo.spym.fixzero()
-
-        size = round(topo.RHK_Xsize * abs(topo.RHK_Xscale) * 1e9, 3)
-        ax.imshow(topo.data, extent=[0, size, 0, size], cmap=cmap)
-
-        if not arrow:
-            for (i, real_coord) in enumerate(self.coords):
-                view_coord = np.array(real_coord - offset) * 1e9
-                ax.plot(view_coord[0], view_coord[1], marker="o", c=colors[i])
-        else:
+        if arrow:
             (x1, y1) = np.array(self.coords[0] - offset) * 1e9
             (x2, y2) = np.array(self.coords[-1] - offset) * 1e9
             ax.arrow(x1, y1, x2 - x1, y2 - y1, lw=0.1, width=0.2, length_includes_head=True, edgecolor='w', facecolor='w')
+        else:
+            for (i, real_coord) in enumerate(self.coords):
+                view_coord = np.array(real_coord - offset) * 1e9
+                ax.plot(view_coord[0], view_coord[1], marker="o", c=colors[i])
 
-        size = round(topo.RHK_Xsize * abs(topo.RHK_Xscale) * 1e9, 3)
-        if scalebar_height is None:
-            scalebar_height = 0.01 * size
-        fontprops = fm.FontProperties(size=14)
-        scalebar = AnchoredSizeBar(ax.transData,
-                                   size/5, f'{size/5} nm', 'lower left',
-                                   pad=0.25,
-                                   color='white',
-                                   frameon=False,
-                                   size_vertical = scalebar_height,
-                                   offset=1,
-                                   fontproperties=fontprops)
-
-        ax.add_artist(scalebar)
-
-        fig.tight_layout()
         return (fig, ax)
 
 

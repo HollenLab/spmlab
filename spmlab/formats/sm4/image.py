@@ -1,4 +1,5 @@
 ## Typing
+from enum import Enum
 from warnings import warn
 
 ## External packages
@@ -9,23 +10,30 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 from xarray import DataArray, Dataset
 from pathlib import Path
 
+
+class TopoDirection(Enum):
+    Forward, Backward = range(2)
+
+
 class TopoData:
     """
     """
-    def __init__(self, topo: DataArray):
-        self.topo = topo
-        self.data = topo.data
+    def __init__(self, ds: DataArray):
+        self.ds = ds
+        self.data = ds.data
 
     def plot(self,
              align=True, 
              plane=True, 
              fix_zero=True, 
              show_axis=False, 
+             show_scalebar=True,
+             scalebar_height=None,
              figsize=(8,8), 
-             scalebar_height=None):
+             cmap=plt.cm.afmhot):
         """
         """
-        img = self.topo
+        img = self.ds
 
         if align:
             img.spym.align()
@@ -54,8 +62,9 @@ class TopoData:
                                    offset=1,
                                    fontproperties=fontprops)
 
-        img = ax.imshow(img.data, extent=[0, size, 0, size], cmap='afmhot')
-        ax.add_artist(scalebar)
+        ax.imshow(img.data, extent=[0, size, 0, size], cmap=cmap)
+        if show_scalebar:
+            ax.add_artist(scalebar)
 
         fig.tight_layout()
         return (fig, ax)

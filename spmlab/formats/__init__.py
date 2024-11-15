@@ -1,1 +1,1 @@
-from .sm4 import read
+from .sm4 import read, TopoDirection
